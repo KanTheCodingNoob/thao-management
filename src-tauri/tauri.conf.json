@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "thao_management",
+  "productName": "QuanLyPhuTung",
   "version": "0.1.0",
   "identifier": "com.thao_management.app",
   "build": {
@@ -12,13 +12,14 @@
   "app": {
     "windows": [
       {
-        "title": "thao_management",
+        "title": "Quan Ly Phu Tung",
         "width": 800,
         "height": 600
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": ["default"]
     }
   },
   "bundle": {
@@ -31,14 +32,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  },
-  "tauri": {
-    "allowlist": {
-      "fs": {
-        "all": false,
-        "createDir": true,
-        "scope": ["$APPDATA"]
-      }
-    }
   }
 }
