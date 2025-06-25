@@ -1,42 +1,41 @@
+mod table_handler;
+
 use std::fs;
 use std::path::PathBuf;
 use once_cell::sync::OnceCell;
+use rusqlite::Connection;
 
-static APP_FOLDER_PATH: OnceCell<PathBuf> = OnceCell::new();
+pub static DATABASE_PATH: OnceCell<PathBuf> = OnceCell::new();
 
 // Initialise a folder in Appdata
 #[tauri::command]
 fn init_app_folder() -> Result<String, String> {
-    if let Some(appdata_path) = dirs::data_dir() {
-        let folder_path: PathBuf = appdata_path.join("thao_management");
-        match fs::create_dir_all(&folder_path) {
-            Ok(_) => {
-                APP_FOLDER_PATH.set(folder_path.clone()).ok();
-                Ok(format!("Created folder at: {}", folder_path.display()))
-            },
-            Err(e) => Err(format!("Failed to create folder: {}", e)),
-        }
-    } else {
-        Err("Could not locate AppData directory.".to_string())
-    }
-}
+    let appdata_path = dirs::data_dir().ok_or("Could not locate AppData directory.")?;
+    let folder_path = appdata_path.join("thao_management");
 
-// Check if the directory is empty
-#[tauri::command]
-fn is_directory_empty() -> Result<bool, String> {
-    match APP_FOLDER_PATH.get() {
-        Some(path) => match fs::read_dir(path) {
-            Ok(mut entries) => Ok(entries.next().is_none()),
-            Err(err) => Err(format!("Failed to read directory: {}", err)),
-        },
-        None => Err("App folder is not initialized.".to_string())
-    }
+    // Create directory
+    fs::create_dir_all(&folder_path)
+        .map_err(|e| format!("Failed to create folder: {}", e))?;
+
+    // Initialize database file
+    let db_path = folder_path.join("management_data.db");
+    Connection::open(&db_path)
+        .map_err(|e| format!("Failed to create/open database: {}", e))?;
+
+    // Set database path
+    DATABASE_PATH.set(db_path.clone()).ok();
+
+    Ok(format!(
+        "Initialized folder at: {} with DB: {}",
+        folder_path.display(),
+        db_path.display()
+    ))
 }
 
 // Allow the frontend to access the path to data
 #[tauri::command]
-fn get_app_folder_path_str() -> Result<String, String> {
-    match APP_FOLDER_PATH.get() {
+fn get_database_path_str() -> Result<String, String> {
+    match DATABASE_PATH.get() {
         Some(path) => Ok(path.display().to_string()),
         None => Err("App folder is not initialized.".to_string()),
     }
@@ -47,7 +46,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![init_app_folder, is_directory_empty, get_app_folder_path_str])
+        .invoke_handler(tauri::generate_handler![init_app_folder, get_database_path_str, table_handler::create_table])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
