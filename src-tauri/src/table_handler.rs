@@ -42,7 +42,7 @@ pub fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), String> 
         table_name
     );
 
-    // Insert every element in JSON
+    // Insert every object in JSON to the database as rows
     for value in rows{
         let row: Table = serde_json::from_value(value)
             .map_err(|e| format!("Invalid row data: {}", e))?;
@@ -52,4 +52,26 @@ pub fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), String> 
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_table_name() -> Result<Vec<String>, String> {
+    let conn = Connection::open(DATABASE_PATH.get().unwrap())
+        .map_err(|e| format!("Failed to create/open table: {}", e))?;
+
+    let mut stmt = conn
+        .prepare("SELECT name FROM sqlite_schema WHERE type='table'", )
+        .map_err(|e| format!("Failed to prepare statement: {}", e))?;
+
+    let table_iter = stmt
+        .query_map([], |row| row.get(0))
+        .map_err(|e| format!("Failed to query tables: {}", e))?;
+
+    let mut tables = Vec::new();
+
+    for table in table_iter {
+        let name: String = table.map_err(|e| format!("Failed to get row: {}", e))?;
+        tables.push(name);
+    }
+    Ok(tables)
 }

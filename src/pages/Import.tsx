@@ -44,13 +44,41 @@ export default function Import(){
 		if (tableName === "" || idLabel === "" || nameLabel === "" || priceLabel === "" || inventoryLabel === "") {
 			setWarning({
 				show: true,
-				message: "Làm ơn nhập hết dữ liệu giùm"
+				message: "Làm ơn nhập hết dữ liệu"
 			});
 			return;
 		}
 
 		// Extract and then reorganise the data to send to the backend
 		const rawData = utils.sheet_to_json<Record<string, any>>(sheet);
+
+		// Validate data types
+		for (let i = 0; i < rawData.length; i++) {
+			const row = rawData[i];
+
+			const id = row[idLabel];
+			const name = row[nameLabel];
+			const price = row[priceLabel];
+			const inventory = row[inventoryLabel];
+
+			if (typeof id !== 'string' && typeof id !== 'number') {
+				setWarning({ show: true, message: `Dòng ${i + 2}: ID không hợp lệ` });
+				return;
+			}
+			if (typeof name !== 'string') {
+				setWarning({ show: true, message: `Dòng ${i + 2}: Tên không hợp lệ` });
+				return;
+			}
+			if (typeof price !== 'number' || isNaN(price)) {
+				setWarning({ show: true, message: `Dòng ${i + 2}: Giá không hợp lệ` });
+				return;
+			}
+			if (typeof inventory !== 'number' || isNaN(inventory)) {
+				setWarning({ show: true, message: `Dòng ${i + 2}: Tồn kho không hợp lệ` });
+				return;
+			}
+		}
+
 		const packagedData: Item[] = rawData.map(row => {
 			return {
 				id: row[idLabel],
@@ -91,7 +119,7 @@ export default function Import(){
 	}
 
 	return (
-		<div className="bg-yellow-100 w-full h-screen">
+		<main className="bg-yellow-100 w-full h-screen">
 			<NavBar />
 			<div className="relative h-screen w-full flex items-center justify-center">
 				<div className="bg-white shadow-md rounded-xl p-4">
@@ -220,13 +248,13 @@ export default function Import(){
 											<div className="flex space-x-2 pt-2">
 												<button
 													onClick={()=>handleSelect()}
-													className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
+													className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 cursor-pointer"
 												>
 													Xác nhận
 												</button>
 												<button
 													onClick={()=>handleCancel()}
-													className="bg-gray-400 text-white px-4 py-1 rounded hover:bg-gray-500"
+													className="bg-gray-400 text-white px-4 py-1 rounded hover:bg-gray-500 cursor-pointer"
 												>
 													Hủy
 												</button>
@@ -247,6 +275,6 @@ export default function Import(){
 					}
 				</div>
 			</div>
-		</div>
+		</main>
 	)
 }
