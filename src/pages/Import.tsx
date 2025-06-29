@@ -18,6 +18,7 @@ export default function Import(){
 		show: false,
 		message: "",
 	});
+	const [loadingStatus, setLoadingStatus] = useState<boolean>(false);
 
 	// Load Excel sheet, then extract headers to list
 	async function loadExcelSheet() {
@@ -40,12 +41,15 @@ export default function Import(){
 
 	// Handle submit
 	async function handleSelect() {
+		// Set the load animation on the submit button
+		setLoadingStatus(true);
 		// Return a warning if not all fields are filled
 		if (tableName === "" || idLabel === "" || nameLabel === "" || priceLabel === "" || inventoryLabel === "") {
 			setWarning({
 				show: true,
 				message: "Làm ơn nhập hết dữ liệu"
 			});
+			setLoadingStatus(false);
 			return;
 		}
 
@@ -63,18 +67,22 @@ export default function Import(){
 
 			if (typeof id !== 'string' && typeof id !== 'number') {
 				setWarning({ show: true, message: `Dòng ${i + 2}: ID không hợp lệ` });
+				setLoadingStatus(false);
 				return;
 			}
 			if (typeof name !== 'string') {
 				setWarning({ show: true, message: `Dòng ${i + 2}: Tên không hợp lệ` });
+				setLoadingStatus(false);
 				return;
 			}
 			if (typeof price !== 'number' || isNaN(price)) {
 				setWarning({ show: true, message: `Dòng ${i + 2}: Giá không hợp lệ` });
+				setLoadingStatus(false);
 				return;
 			}
 			if (typeof inventory !== 'number' || isNaN(inventory)) {
 				setWarning({ show: true, message: `Dòng ${i + 2}: Tồn kho không hợp lệ` });
+				setLoadingStatus(false);
 				return;
 			}
 		}
@@ -96,13 +104,14 @@ export default function Import(){
 				show: true,
 				message: "Tạo bảng đã thành công"
 			});
-		} catch (error) {
-			console.log(error);
+		} catch (error: any) {
+			console.log(error)
 			setWarning({
 				show: true,
-				message: "Tạo bảng thất bại, liên hệ với tổng đài hỗ trợ"
+				message: error
 			});
 		}
+		setLoadingStatus(false);
 	}
 
 	// Reset all input
@@ -246,12 +255,24 @@ export default function Import(){
 											</div>
 
 											<div className="flex space-x-2 pt-2">
-												<button
-													onClick={()=>handleSelect()}
-													className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 cursor-pointer"
-												>
-													Xác nhận
-												</button>
+												{
+													loadingStatus ? (
+														<button disabled
+														        className="bg-blue-200 text-white px-4 py-1 rounded">
+															<span className="flex items-center gap-2">
+															    <span className="w-4 h-4 border-4 border-t-transparent border-white rounded-full animate-spin"></span>
+															    Đang xử lý...
+															</span>
+														</button>
+													) : (
+														<button
+															onClick={() => handleSelect()}
+															className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 cursor-pointer"
+														>
+														Xác nhận
+														</button>
+													)
+												}
 												<button
 													onClick={()=>handleCancel()}
 													className="bg-gray-400 text-white px-4 py-1 rounded hover:bg-gray-500 cursor-pointer"
