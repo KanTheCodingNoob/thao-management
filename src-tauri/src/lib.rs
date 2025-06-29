@@ -32,15 +32,6 @@ fn init_app_folder() -> Result<String, String> {
     ))
 }
 
-// Allow the frontend to access the path to data
-#[tauri::command]
-fn get_database_path_str() -> Result<String, String> {
-    match DATABASE_PATH.get() {
-        Some(path) => Ok(path.display().to_string()),
-        None => Err("App folder is not initialized.".to_string()),
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -48,7 +39,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             init_app_folder,
-            get_database_path_str,
             table_handler::create_table,
             table_handler::get_table_name,
         ])
