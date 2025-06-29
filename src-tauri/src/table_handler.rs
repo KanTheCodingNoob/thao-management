@@ -39,7 +39,7 @@ pub async fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), St
             .map_err(|e| "Tạo bảng thất bại")?;
 
         let insert_sql = format!(
-            "INSERT INTO {} (id, name, price, inventory)\
+            "INSERT OR IGNORE INTO {} (id, name, price, inventory)\
              VALUES (?1, ?2, ?3, ?4)",
             table_name
         );
