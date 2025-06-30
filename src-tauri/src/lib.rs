@@ -42,6 +42,8 @@ pub fn run() {
             table_handler::create_table,
             table_handler::get_table_name,
             table_handler::get_requested_data,
+            table_handler::increment_item_inventory,
+            table_handler::decrement_item_inventory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,3 +5,8 @@ export type Item = {
 	inventory: number;
 	brand: string
 };
+
+export type PaginatedResult = {
+	data: Item[];
+	total_pages: number;
+}

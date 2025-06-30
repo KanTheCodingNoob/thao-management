@@ -88,7 +88,7 @@ pub fn get_table_name() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn get_requested_data(table_name: String, id: String, name: String, page: u32, page_size: u32) -> Result<Vec<Table>, String> {
+pub fn get_requested_data(table_name: String, id: String, name: String, page: u32, page_size: u32) -> Result<PaginatedResult, String> {
     let conn = Connection::open(DATABASE_PATH.get().unwrap()).map_err(|e| e.to_string())?;
 
     // Calculate offset
@@ -155,5 +155,52 @@ pub fn get_requested_data(table_name: String, id: String, name: String, page: u3
 
     let total_pages = ((total_rows as u32) + page_size - 1) / page_size;
 
-    Ok(data)
+    Ok(PaginatedResult {
+        data,
+        total_pages,
+    })
+}
+
+#[tauri::command]
+pub fn increment_item_inventory(id: String, table_name: String) -> Result<(), String> {
+    let conn = Connection::open(DATABASE_PATH.get().unwrap()).map_err(|e| e.to_string())?;
+
+    // Prepare SQL query
+    let query = format!(
+        "UPDATE {} SET inventory = inventory + 1 WHERE id = ?1",
+        table_name
+    );
+
+    // Execute query
+    let affected = conn
+        .execute(&query, params![id])
+        .map_err(|e| e.to_string())?;
+
+    if affected == 0 {
+        return Err("No item found with the given ID.".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn decrement_item_inventory(id: String, table_name: String) -> Result<(), String> {
+    let conn = Connection::open(DATABASE_PATH.get().unwrap()).map_err(|e| e.to_string())?;
+
+    // Prepare SQL query
+    let query = format!(
+        "UPDATE {} SET inventory = inventory - 1 WHERE id = ?1",
+        table_name
+    );
+
+    // Execute query
+    let affected = conn
+        .execute(&query, params![id])
+        .map_err(|e| e.to_string())?;
+
+    if affected == 0 {
+        return Err("No item found with the given ID.".to_string());
+    }
+
+    Ok(())
 }
