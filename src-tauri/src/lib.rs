@@ -41,6 +41,7 @@ pub fn run() {
             init_app_folder,
             table_handler::create_table,
             table_handler::get_table_name,
+            table_handler::get_requested_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

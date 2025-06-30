@@ -4,8 +4,8 @@ import NavBar from "../components/NavBar.tsx";
 import {Item} from "../type/type.ts";
 
 /*
-Call the function that create a folder in Appdata,
-return boolean to tell the UI is the folder available.
+	Call the function that create a folder in Appdata,
+	return boolean to tell the UI is the folder available.
 */
 async function createAppFolder(): Promise<boolean> {
 	try {
@@ -18,28 +18,34 @@ async function createAppFolder(): Promise<boolean> {
 	}
 }
 
-async function retrieveBrandName(): Promise<string[]> {
-	try {
-		return await invoke<string[]>('get_table_name')
-	} catch (error) {
-		return [];
-	}
-}
-
 function App() {
 	const [success, setSuccess] = useState<boolean|null>(null);
 	const [allowEdit, setAllowEdit] = useState<boolean>(false);
-	const [brands, setBrands] = useState<string[]>([]);
-	const [entries, setEntries] = useState<Item[]>([]);
-	const [showOptions, setShowOptions] = useState<boolean>(false);
+	const [results, setResults] = useState<Item[]>([]);
+	const [totalPage, setTotalPage] = useState<number>(0);
+	const [currentPage, setCurrentPage] = useState<number>(1);
+	const [searchParams, setSearchParams] = useState({id: "", name: "", brand: "" });
+	const [filters, setFilters] = useState({id: "", name: "", brand: "" });
+	const page_size: number = 10;
 
 	useEffect(() => {
 		createAppFolder().then(setSuccess);
-		retrieveBrandName().then(setBrands);
 	}, []);
 
-	function retrieveEntries() {
+	async function retrieveResults(page: number, params = searchParams) {
+		const response = await invoke<Item[]>('get_requested_data', {tableName: params.brand, id: params.id, name: params.name, page: page, pageSize: page_size});
+		setResults(response);
+	}
 
+	async function handleSearch() {
+		setSearchParams({id: filters.id, brand: filters.brand, name: filters.name})
+		setCurrentPage(1);
+		await retrieveResults(currentPage, searchParams);
+	}
+
+	async function handlePagination() {
+		setCurrentPage(currentPage + 1);
+		await retrieveResults(currentPage, searchParams);
 	}
 
 	return (
@@ -47,7 +53,7 @@ function App() {
 			<NavBar />
 			<main className="relative h-screen w-full flex items-center justify-center">
 				{success === true && <div className="w-full flex flex-row justify-around">
-					<div className="bg-white p-4 rounded-xl">
+					<div className="bg-white p-4 rounded-xl flex flex-col items-center gap-2 shadow-md">
 						<label>
 							Chỉnh sửa
 							<input type="checkbox"
@@ -55,37 +61,35 @@ function App() {
 							       onChange={(e)=> setAllowEdit(e.target.checked)}/>
 						</label>
 						<label className="block">Hãng</label>
-						<select>
-							{
-								brands.map((brand)=>(
-									<option key={brand} value={brand}>
-										{brand}
-									</option>
-								))
-							}
-						</select>
-						<button className="ml-4 px-1 cursor-pointer bg-gray-400 rounded-md">Tìm</button>
+						<input type="text" className="border px-2" value={filters.brand} onChange={(e)=>setFilters(prev => ({ ...prev, brand: e.target.value }))}/>
 						<label className="block">Mã</label>
-						<input type="text" className="border"/>
+						<input type="text" className="border px-2" value={filters.id} onChange={(e)=> setFilters(prev => ({ ...prev, id: e.target.value }))}/>
 						<label className="block">Tên</label>
-						<input type="text" className="border"/>
+						<input type="text" className="border px-2" value={filters.name} onChange={(e)=> setFilters(prev => ({ ...prev, name: e.target.value }))}/>
+						<button
+							className="px-1 border cursor-pointer bg-gray-400 hover:bg-gray-600 rounded-md transition duration-300"
+							onClick={()=> handleSearch()}>
+							Tìm kiếm
+						</button>
 					</div>
-					<div className="bg-white p-4 rounded-xl">
+					<div className="bg-white p-4 rounded-xl shadow-md">
 						<table className="border border-collapse">
 							<tbody>
 								<tr>
 									<th className="border">Mã</th>
 									<th className="border">Tên</th>
 									<th className="border">Giá</th>
+									<th className="border">Hãng</th>
 									<th className="border">Kho</th>
 								</tr>
 								{
-									entries.map((entry) => (
+									results.map((result) => (
 										<tr>
-											<td className="border">{entry.id}</td>
-											<td className="border">{entry.name}</td>
-											<td className="border">{entry.price}</td>
-											<td className="border">{entry.inventory}</td>
+											<td className="border">{result.id}</td>
+											<td className="border">{result.name}</td>
+											<td className="border">{result.price}</td>
+											<td className="border">{result.brand}</td>
+											<td className="border">{result.inventory}</td>
 										</tr>
 									))
 								}

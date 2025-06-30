@@ -93,6 +93,7 @@ export default function Import(){
 				name: row[nameLabel],
 				price: Math.round(row[priceLabel]),
 				inventory: Math.round(row[inventoryLabel]),
+				brand: tableName
 			}
 		})
 		console.log(packagedData)

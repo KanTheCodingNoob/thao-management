@@ -9,10 +9,10 @@ export default function NavBar(){
 				Thảo
 			</div>
 			<button
-				className="bg-green-300 font-semibold px-4 py-2 rounded shadow-lg shadow-green-400/50 hover:bg-green-500 transition duration-300 cursor-pointer"
+				className="bg-green-300 font-semibold px-2 py-1 rounded shadow-lg shadow-green-400/50 hover:bg-green-500 transition duration-300 cursor-pointer"
 				onClick={() => navigate("/import")}
 			>
-				+ Tạo bảng
+				+ Tạo / nhập bảng
 			</button>
 		</nav>
 	)

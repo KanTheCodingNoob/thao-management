@@ -5,11 +5,18 @@ use crate::{DATABASE_PATH};
 use tokio::task;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Table {
-    id: String,
-    name: String,
-    price: u64,
-    inventory: u32
+pub struct Table {
+    pub id: String,
+    pub name: String,
+    pub price: u32,
+    pub inventory: u32,
+    pub brand: String
+}
+
+#[derive(serde::Serialize, Deserialize, Debug)]
+pub struct PaginatedResult {
+    pub data: Vec<Table>,
+    pub total_pages: u32,
 }
 
 #[tauri::command]
@@ -21,7 +28,7 @@ pub async fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), St
 
     task::spawn_blocking(move || {
         let conn = Connection::open(DATABASE_PATH.get().unwrap())
-            .map_err(|e| "Mở bảng thất bại")?;
+            .map_err(|_e| "Mở bảng thất bại")?;
 
         // Dynamically build query string
         let create_table_sql = format!(
@@ -29,38 +36,39 @@ pub async fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), St
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 price NUMBER NOT NULL,
-                inventory NUMBER
+                inventory NUMBER,
+                brand TEXT NOT NULL
             )",
             table_name
         );
 
         // Execute table creation
         conn.execute(&create_table_sql, [])
-            .map_err(|e| "Tạo bảng thất bại")?;
+            .map_err(|_e| "Tạo bảng thất bại")?;
 
         let insert_sql = format!(
-            "INSERT OR IGNORE INTO {} (id, name, price, inventory)\
-             VALUES (?1, ?2, ?3, ?4)",
+            "INSERT OR IGNORE INTO {} (id, name, price, inventory, brand)\
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             table_name
         );
 
         // Insert every object in JSON to the database as rows
         for value in rows{
             let row: Table = serde_json::from_value(value)
-                .map_err(|e| "Dữ liệu không phù hợp")?;
+                .map_err(|_e| "Dữ liệu không phù hợp")?;
 
-            conn.execute(&insert_sql, params![row.id, row.name, row.price, row.inventory])
-                .map_err(|e| "Nhập dữ liệu thất bại")?;
+            conn.execute(&insert_sql, params![row.id, row.name, row.price, row.inventory, row.brand])
+                .map_err(|e| format!("Nhập dữ liệu thất bại: {}", e))?;
         }
 
         Ok(())
-    }).await.map_err(|e| "Sự cố đã xảy ra")?
+    }).await.map_err(|_e| "Sự cố đã xảy ra")?
 }
 
 #[tauri::command]
 pub fn get_table_name() -> Result<Vec<String>, String> {
     let conn = Connection::open(DATABASE_PATH.get().unwrap())
-        .map_err(|e| format!("Failed to create/open table: {}", e))?;
+        .map_err(|e| format!("Failed to create/open table: {}", e.to_string()))?;
 
     let mut stmt = conn
         .prepare("SELECT name FROM sqlite_schema WHERE type='table'", )
@@ -70,11 +78,82 @@ pub fn get_table_name() -> Result<Vec<String>, String> {
         .query_map([], |row| row.get(0))
         .map_err(|e| format!("Failed to query tables: {}", e))?;
 
-    let mut tables = Vec::new();
+    let mut table_names = Vec::new();
 
     for table in table_iter {
         let name: String = table.map_err(|e| format!("Failed to get row: {}", e))?;
-        tables.push(name);
+        table_names.push(name);
     }
-    Ok(tables)
+    Ok(table_names)
+}
+
+#[tauri::command]
+pub fn get_requested_data(table_name: String, id: String, name: String, page: u32, page_size: u32) -> Result<Vec<Table>, String> {
+    let conn = Connection::open(DATABASE_PATH.get().unwrap()).map_err(|e| e.to_string())?;
+
+    // Calculate offset
+    let offset = (page - 1) * page_size;
+    let mut data = Vec::new();
+    let mut total_rows = 0;
+
+    // Retrieve all table that match the given name
+    let like_pattern = format!("%{}%", table_name);
+    let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE ?1")
+        .map_err(|e| e.to_string())?;
+    let table_names = stmt.query_map([like_pattern], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to query matching table names: {}", e))?
+        .filter_map(Result::ok)
+        .collect::<Vec<String>>();
+
+    for table in table_names {
+        // Count matching rows
+        let count_query = format!(
+            "SELECT COUNT(*) FROM {} WHERE id LIKE ?1 AND name LIKE ?2",
+            table
+        );
+
+        if let Ok(mut stmt) = conn.prepare(&count_query) {
+            let count: i64 = stmt
+                .query_row(
+                    params![format!("%{}%", id), format!("%{}%", name)],
+                    |row| row.get(0),
+                )
+                .unwrap_or(0);
+            total_rows += count;
+        }
+
+        // Fetch matching rows with pagination
+        let data_query = format!(
+            "SELECT * FROM {} WHERE id LIKE ?1 AND name LIKE ?2 LIMIT ?3 OFFSET ?4",
+            table
+        );
+
+        let mut stmt = match conn.prepare(&data_query) {
+            Ok(stmt) => stmt,
+            Err(_) => continue, // skip if table structure is incompatible or doesn't exist
+        };
+
+        let rows = stmt.query_map(
+            params![format!("%{}%", id), format!("%{}%", name), page_size, offset],
+            |row| {
+                Ok(Table {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    price: row.get(2)?,
+                    inventory: row.get(3)?,
+                    brand: row.get(4)?,
+                })
+            },
+        );
+
+        if let Ok(mapped) = rows {
+            for row in mapped.flatten() {
+                data.push(row);
+            }
+        }
+    }
+
+    let total_pages = ((total_rows as u32) + page_size - 1) / page_size;
+
+    Ok(data)
 }
