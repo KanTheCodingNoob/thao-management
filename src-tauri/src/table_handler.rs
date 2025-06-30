@@ -20,7 +20,7 @@ pub struct PaginatedResult {
 }
 
 #[tauri::command]
-pub async fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), String> {
+pub async fn create_table(table_name: String, rows: Vec<Value>, import: bool) -> Result<(), String> {
     // Validate table name: only allow alphanumeric and underscores
     if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return Err("Tên bảng không phù hợp".into());
@@ -46,11 +46,23 @@ pub async fn create_table(table_name: String, rows: Vec<Value>) -> Result<(), St
         conn.execute(&create_table_sql, [])
             .map_err(|_e| "Tạo bảng thất bại")?;
 
-        let insert_sql = format!(
-            "INSERT OR IGNORE INTO {} (id, name, price, inventory, brand)\
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            table_name
-        );
+        let insert_sql = if import {
+            // If importing, increment inventory on conflict
+            format!(
+                "INSERT INTO {} (id, name, price, inventory, brand)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(id) DO UPDATE SET
+                     inventory = inventory + excluded.inventory",
+                table_name
+            )
+        } else {
+            // If not importing, ignore duplicate ID
+            format!(
+                "INSERT OR IGNORE INTO {} (id, name, price, inventory, brand)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                table_name
+            )
+        };
 
         // Insert every object in JSON to the database as rows
         for value in rows{

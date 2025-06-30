@@ -19,6 +19,7 @@ export default function Import(){
 		message: "",
 	});
 	const [loadingStatus, setLoadingStatus] = useState<boolean>(false);
+	const [addInventory, setAddInventory] = useState<boolean>(false);
 
 	// Load Excel sheet, then extract headers to list
 	async function loadExcelSheet() {
@@ -99,11 +100,11 @@ export default function Import(){
 		console.log(packagedData)
 		// Call backend to create table into the database
 		try {
-			const response = await invoke<string>('create_table', {tableName: tableName, rows: packagedData});
+			const response = await invoke<string>('create_table', {tableName: tableName, rows: packagedData, import: addInventory});
 			console.log(response)
 			setWarning({
 				show: true,
-				message: "Tạo bảng đã thành công"
+				message: "Tạo / nhập bảng đã thành công"
 			});
 		} catch (error: any) {
 			console.log(error)
@@ -139,17 +140,21 @@ export default function Import(){
 						type="file"
 						id="table"
 						name="table"
-						className="block cursor-pointer"
+						className="file:bg-blue-600 file:text-white file:px-4 file:py-1 file:rounded file:border-0 file:cursor-pointer block"
 						accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 						onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
 					/>
 					<button type="submit"
-					        className="bg-green-400 rounded-md px-2 py-0.5 cursor-pointer"
+					        className="bg-green-600 rounded px-2 py-0.5 cursor-pointer mt-1"
 					        onClick={() => loadExcelSheet()}>Đọc</button>
 					{
 						(labelList.length > 0 || isReading) && (
 							<div className="mt-4">
 								<h2 className="font-bold">Nhập thông tin bạn muốn lưu</h2>
+								<label>
+									Cập nhật tồn kho
+									<input type="checkbox" className="ml-1" checked={addInventory} onChange={()=> setAddInventory(!addInventory)}/>
+								</label>
 								{
 									isReading ? (
 										<div className="animate-pulse">
